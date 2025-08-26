@@ -1,7 +1,7 @@
 import React, { useState, useRef } from 'react';
 import type { Source, Folder } from '../types';
 import { SourceType } from '../types';
-import { GlobeIcon, FileTextIcon, PlusIcon, TwitterIcon, TelegramIcon, FolderIcon, TrashIcon, ChevronRightIcon, EditIcon, EyeIcon } from './icons';
+import { GlobeIcon, FileTextIcon, PlusIcon, TwitterIcon, TelegramIcon, FolderIcon, TrashIcon, ChevronRightIcon, EditIcon, EyeIcon, SettingsIcon } from './icons';
 
 interface SidebarProps {
   sources: Source[];
@@ -14,6 +14,7 @@ interface SidebarProps {
   onDeleteFolder: (folderId: string) => void;
   onEditSource: (source: Source) => void;
   onViewSource: (source: Source) => void;
+  onOpenSettings: () => void;
 }
 
 const sourceTypes = [SourceType.URL, SourceType.FILE, SourceType.TWITTER, SourceType.TELEGRAM];
@@ -35,6 +36,7 @@ const AddSourceForm: React.FC<{onAddSource: SidebarProps['onAddSource']; folders
     const [newSourceName, setNewSourceName] = useState('');
     const [newSourceFolderId, setNewSourceFolderId] = useState<string>('');
     const [uploadStatus, setUploadStatus] = useState<{status: 'idle' | 'reading' | 'success' | 'error', message: string}>({status: 'idle', message: ''});
+    const [uploadProgress, setUploadProgress] = useState(0);
     const fileInputRef = useRef<HTMLInputElement>(null);
 
     const resetForm = () => {
@@ -42,6 +44,7 @@ const AddSourceForm: React.FC<{onAddSource: SidebarProps['onAddSource']; folders
         setNewSourceValue('');
         if (fileInputRef.current) fileInputRef.current.value = '';
         setUploadStatus({status: 'idle', message: ''});
+        setUploadProgress(0);
     };
 
     const getPlaceholder = () => {
@@ -68,17 +71,26 @@ const AddSourceForm: React.FC<{onAddSource: SidebarProps['onAddSource']; folders
         }
 
         const reader = new FileReader();
+        reader.onprogress = (event) => {
+            if(event.lengthComputable) {
+                const percentLoaded = Math.round((event.loaded / event.total) * 100);
+                setUploadProgress(percentLoaded);
+            }
+        };
         reader.onloadstart = () => {
             setUploadStatus({status: 'reading', message: 'Reading file...'});
+            setUploadProgress(0);
         }
         reader.onload = (event) => {
             setNewSourceName(file.name);
             setNewSourceValue(event.target?.result as string); // This will be a data URL (base64)
-            setUploadStatus({status: 'success', message: 'File ready!'});
+            setUploadStatus({status: 'success', message: 'File read successfully!'});
+            setUploadProgress(100);
         };
         reader.onerror = () => {
              setUploadStatus({status: 'error', message: 'Could not read file.'});
              if (fileInputRef.current) fileInputRef.current.value = '';
+             setUploadProgress(0);
         }
         reader.readAsDataURL(file);
     };
@@ -128,6 +140,11 @@ const AddSourceForm: React.FC<{onAddSource: SidebarProps['onAddSource']; folders
                  {newSourceType === SourceType.FILE ? (
                     <div>
                         <input type="file" ref={fileInputRef} onChange={handleFileChange} accept=".pdf,.doc,.docx,.xls,.xlsx,.html,.htm,.png,.jpg,.jpeg,.txt,.md" className="w-full text-sm text-slate-400 file:mr-4 file:py-2 file:px-4 file:rounded-md file:border-0 file:text-sm file:font-semibold file:bg-slate-700 file:text-teal-300 hover:file:bg-slate-600"/>
+                        {uploadStatus.status === 'reading' && (
+                             <div className="w-full bg-slate-600 rounded-full h-2 mt-2">
+                                <div className="bg-teal-500 h-2 rounded-full" style={{ width: `${uploadProgress}%` }}></div>
+                            </div>
+                        )}
                         {uploadStatus.message && (
                             <p className={`text-xs mt-2 ${uploadStatus.status === 'error' ? 'text-red-400' : 'text-green-400'}`}>
                                 {uploadStatus.message}
@@ -147,7 +164,7 @@ const AddSourceForm: React.FC<{onAddSource: SidebarProps['onAddSource']; folders
             </div>
             <div className="flex gap-2">
                 <button type="button" onClick={onDone} className="w-full bg-slate-600 hover:bg-slate-500 text-white font-bold py-2 px-4 rounded-md text-sm transition-colors">Cancel</button>
-                <button type="submit" disabled={uploadStatus.status === 'reading'} className="w-full bg-teal-600 hover:bg-teal-500 text-white font-bold py-2 px-4 rounded-md text-sm flex items-center justify-center transition-colors disabled:bg-slate-500 disabled:cursor-not-allowed">
+                <button type="submit" disabled={uploadStatus.status === 'reading' || (newSourceType === SourceType.FILE && uploadStatus.status !== 'success')} className="w-full bg-teal-600 hover:bg-teal-500 text-white font-bold py-2 px-4 rounded-md text-sm flex items-center justify-center transition-colors disabled:bg-slate-500 disabled:cursor-not-allowed">
                     <PlusIcon className="w-4 h-4 mr-2" /> Add Source
                 </button>
             </div>
@@ -192,7 +209,7 @@ const FolderItem: React.FC<{folder: Folder; children: React.ReactNode; onDeleteF
     )
 }
 
-export const Sidebar: React.FC<SidebarProps> = ({ sources, folders, selectedSources, onAddSource, onAddFolder, onToggleSource, onDeleteSource, onDeleteFolder, onEditSource, onViewSource }) => {
+export const Sidebar: React.FC<SidebarProps> = ({ sources, folders, selectedSources, onAddSource, onAddFolder, onToggleSource, onDeleteSource, onDeleteFolder, onEditSource, onViewSource, onOpenSettings }) => {
     const [showAddSource, setShowAddSource] = useState(false);
     const [showAddFolder, setShowAddFolder] = useState(false);
 
@@ -205,7 +222,12 @@ export const Sidebar: React.FC<SidebarProps> = ({ sources, folders, selectedSour
 
     return (
         <div className="w-1/3 max-w-sm bg-slate-800 text-white flex flex-col p-4 border-r border-slate-700">
-            <h2 className="text-xl font-bold mb-4 text-slate-200">Knowledge Sources</h2>
+            <div className="flex justify-between items-center mb-4">
+                <h2 className="text-xl font-bold text-slate-200">Knowledge Sources</h2>
+                <button onClick={onOpenSettings} className="text-slate-400 hover:text-white transition-colors" title="Settings">
+                    <SettingsIcon className="w-6 h-6" />
+                </button>
+            </div>
             
             <div className="flex gap-2 mb-4">
                 <button onClick={() => { setShowAddFolder(true); setShowAddSource(false); }} className="flex-1 text-sm bg-slate-700 hover:bg-slate-600 text-slate-200 font-bold py-2 px-4 rounded-md flex items-center justify-center transition-colors"><FolderIcon className="w-4 h-4 mr-2"/>New Folder</button>

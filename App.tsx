@@ -3,6 +3,7 @@ import { Sidebar } from './components/Sidebar';
 import { ChatWindow } from './components/ChatWindow';
 import { EditSourceModal } from './components/EditSourceModal';
 import { ViewSourceModal } from './components/ViewSourceModal';
+import { SettingsModal } from './components/SettingsModal';
 import { getGroundedResponse } from './services/geminiService';
 import type { Source, Message, Folder } from './types';
 import { SourceType } from './types';
@@ -19,6 +20,7 @@ const App: React.FC = () => {
   const [isLoading, setIsLoading] = useState(false);
   const [editingSource, setEditingSource] = useState<Source | null>(null);
   const [viewingSource, setViewingSource] = useState<Source | null>(null);
+  const [isSettingsOpen, setIsSettingsOpen] = useState(false);
 
   const handleAddFolder = useCallback((folder: Omit<Folder, 'id'>) => {
     const newFolder = { ...folder, id: new Date().toISOString() };
@@ -117,6 +119,7 @@ const App: React.FC = () => {
         onDeleteFolder={handleDeleteFolder}
         onEditSource={setEditingSource}
         onViewSource={setViewingSource}
+        onOpenSettings={() => setIsSettingsOpen(true)}
       />
       <ChatWindow
         messages={messages}
@@ -137,6 +140,9 @@ const App: React.FC = () => {
             source={viewingSource}
             onClose={() => setViewingSource(null)}
           />
+      )}
+      {isSettingsOpen && (
+        <SettingsModal onClose={() => setIsSettingsOpen(false)} />
       )}
     </div>
   );
