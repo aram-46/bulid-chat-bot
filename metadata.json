@@ -1,0 +1,5 @@
+{
+  "name": "Grounding Source Chatbot",
+  "description": "A chatbot that allows users to provide specific sources (files, URLs, etc.) and answers questions based only on the provided information. This creates a focused and context-aware conversation experience.",
+  "requestFramePermissions": []
+}
