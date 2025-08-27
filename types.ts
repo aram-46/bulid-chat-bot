@@ -25,3 +25,11 @@ export interface Message {
   text: string;
   sender: 'user' | 'bot';
 }
+
+export interface AIModelConfig {
+  id: string;
+  name: string;
+  type: 'gemini' | 'custom';
+  url?: string; // for custom models
+  isActive: boolean;
+}

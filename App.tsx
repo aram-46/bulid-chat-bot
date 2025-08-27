@@ -5,7 +5,7 @@ import { EditSourceModal } from './components/EditSourceModal';
 import { ViewSourceModal } from './components/ViewSourceModal';
 import { SettingsModal } from './components/SettingsModal';
 import { getGroundedResponse } from './services/geminiService';
-import type { Source, Message, Folder } from './types';
+import type { Source, Message, Folder, AIModelConfig } from './types';
 import { SourceType } from './types';
 
 const App: React.FC = () => {
@@ -21,6 +21,9 @@ const App: React.FC = () => {
   const [editingSource, setEditingSource] = useState<Source | null>(null);
   const [viewingSource, setViewingSource] = useState<Source | null>(null);
   const [isSettingsOpen, setIsSettingsOpen] = useState(false);
+  const [modelConfigs, setModelConfigs] = useState<AIModelConfig[]>([
+    { id: 'gemini-default', name: 'Google Gemini (gemini-2.5-flash)', type: 'gemini', isActive: true }
+  ]);
 
   const handleAddFolder = useCallback((folder: Omit<Folder, 'id'>) => {
     const newFolder = { ...folder, id: new Date().toISOString() };
@@ -74,6 +77,19 @@ const App: React.FC = () => {
     setMessages(prev => [...prev, userMessage]);
     setIsLoading(true);
 
+    // Check if the primary Gemini model is active
+    const geminiIsActive = modelConfigs.some(m => m.type === 'gemini' && m.isActive);
+    if (!geminiIsActive) {
+        const errorMessage: Message = { 
+            id: new Date().toISOString() + '-bot-error', 
+            text: 'The default Gemini model is not active. Please enable it in the settings to get a response.', 
+            sender: 'bot' 
+        };
+        setMessages(prev => [...prev, errorMessage]);
+        setIsLoading(false);
+        return;
+    }
+
     try {
         const activeSources = sources.filter(s => selectedSources.has(s.id));
         const responseText = await getGroundedResponse(text, activeSources);
@@ -90,7 +106,7 @@ const App: React.FC = () => {
     } finally {
         setIsLoading(false);
     }
-  }, [sources, selectedSources]);
+  }, [sources, selectedSources, modelConfigs]);
 
   const handleExportChat = useCallback(() => {
     if (messages.length === 0) return;
@@ -105,6 +121,11 @@ const App: React.FC = () => {
     document.body.removeChild(link);
     URL.revokeObjectURL(url);
   }, [messages]);
+  
+  const handleSaveSettings = useCallback((newConfigs: AIModelConfig[]) => {
+    setModelConfigs(newConfigs);
+    setIsSettingsOpen(false);
+  }, []);
 
   return (
     <div className="flex h-screen w-full font-sans bg-slate-900">
@@ -142,7 +163,11 @@ const App: React.FC = () => {
           />
       )}
       {isSettingsOpen && (
-        <SettingsModal onClose={() => setIsSettingsOpen(false)} />
+        <SettingsModal 
+            currentConfigs={modelConfigs}
+            onSave={handleSaveSettings}
+            onClose={() => setIsSettingsOpen(false)} 
+        />
       )}
     </div>
   );
